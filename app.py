@@ -52,14 +52,13 @@ def login_page():
     change_username = st.text_input("Username for Password Change")
     old_password = st.text_input("Old Password", type="password", key="old_password")
     new_password = st.text_input("New Password", type="password", key="new_password")
-    secret_key = st.text_input("Secret Key", type="password", key="secret_key")
     
     if st.button("Change Password"):
-        if change_username and old_password and new_password and secret_key:
-            if db_manager.change_user_password(change_username, old_password, new_password, secret_key):
+        if change_username and old_password and new_password:
+            if db_manager.change_user_password(change_username, old_password, new_password):
                 st.success("Password changed successfully!")
             else:
-                st.error("Failed to change password. Please check your credentials and secret key.")
+                st.error("Failed to change password. Please check your credentials.")
         else:
             st.error("Please fill in all fields.")
 
@@ -119,7 +118,7 @@ def show_help():
 /dm <username>                                 - Start direct message
 /exit                                          - Exit DM or leave room
 /logout                                        - Logout
-/changepass <username> <oldpass> <newpass> <secretkey> - Change user password
+/changepass <username> <oldpass> <newpass>     - Change user password
 /adduser <username> <password> <securitykey>   - (Admin) Create new user
 /createroom <roomname> <securitykey>           - (Admin) Create new room
 /deleteroom <roomname> <securitykey>           - (Admin) Delete a room
@@ -191,12 +190,12 @@ def validate_security_key(security_key):
         # Fallback to default if not configured (for development)
         return security_key == "TCA_ADMIN_KEY_2023"
 
-def change_password(username, old_pass, new_pass, secret_key):
+def change_password(username, old_pass, new_pass):
     """Change user password."""
-    if db_manager.change_user_password(username, old_pass, new_pass, secret_key):
+    if db_manager.change_user_password(username, old_pass, new_pass):
         st.text(f"Password for user '{username}' changed successfully.")
     else:
-        st.text(f"Error: Failed to change password for user '{username}'. Please check credentials and secret key.")
+        st.text(f"Error: Failed to change password for user '{username}'. Please check credentials.")
 
 def add_user(username, password, security_key):
     """Add a new user (admin only)."""
@@ -332,7 +331,7 @@ def get_contextual_commands():
         else:
             # Add user command for changing password
             commands.extend([
-                ("/changepass <username> <oldpass> <newpass> <secretkey>", "Change your password")
+                ("/changepass <username> <oldpass> <newpass>", "Change your password")
             ])
     
     return commands
@@ -384,8 +383,8 @@ def process_command(command_str):
             st.session_state.rooms = []
             st.session_state.security_key = None
             st.experimental_rerun()
-        elif command == "/changepass" and len(parts) > 4:
-            change_password(parts[1], parts[2], parts[3], parts[4])
+        elif command == "/changepass" and len(parts) > 3:
+            change_password(parts[1], parts[2], parts[3])
         elif command == "/adduser" and len(parts) > 3 and st.session_state.user_data.get('role') == 'admin':
             add_user(parts[1], parts[2], parts[3])
         elif command == "/addmultipleusers" and len(parts) > 2 and st.session_state.user_data.get('role') == 'admin':

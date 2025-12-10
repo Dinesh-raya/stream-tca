@@ -97,8 +97,8 @@ class DatabaseManager:
             print(f"Error authenticating user: {e}")
             return None
     
-    def change_user_password(self, username: str, old_password: str, new_password: str, secret_key: str) -> bool:
-        """Change a user's password after verifying old password and secret key."""
+    def change_user_password(self, username: str, old_password: str, new_password: str) -> bool:
+        """Change a user's password after verifying old password."""
         try:
             # First verify the old password
             response = self.supabase.table("users").select("*").eq("username", username).execute()
@@ -108,10 +108,6 @@ class DatabaseManager:
             user = response.data[0]
             if not bcrypt.checkpw(old_password.encode('utf-8'), user["password"].encode('utf-8')):
                 return False  # Old password is incorrect
-            
-            # In a real implementation, we would verify the secret key here
-            # For now, we'll assume the secret key verification is successful
-            # In practice, you would have a separate table or field for secret keys
             
             # Hash and update the new password
             hashed_new_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt(rounds=BCRYPT_ROUNDS))

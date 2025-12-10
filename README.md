@@ -17,7 +17,7 @@ This is a Python Streamlit implementation of the Terminal Communication Array v2
 - Automatic message cleanup (3-day retention policy)
 - Admin-only deletion permissions
 - Bulk user creation capabilities
-- User password change with secret key verification
+- User password change without secret keys
 
 ## Prerequisites
 
@@ -143,7 +143,7 @@ The application features a Discord-like command interface where users can intera
    - `/giveaccess <user1,user2,...> <roomname> <securitykey>` - Grant room access
 
 4. **User Commands** (available to all users):
-   - `/changepass <username> <oldpass> <newpass> <secretkey>` - Change your password
+   - `/changepass <username> <oldpass> <newpass>` - Change your password
 
 ### Terminal Commands
 
@@ -158,7 +158,7 @@ All commands start with '/'. Available commands:
 /dm <username>                                 - Start direct message
 /exit                                          - Exit DM or leave room
 /logout                                        - Logout
-/changepass <username> <oldpass> <newpass> <secretkey> - Change user password
+/changepass <username> <oldpass> <newpass>     - Change user password
 /adduser <username> <password> <securitykey>   - (Admin) Create new user
 /createroom <roomname> <securitykey>           - (Admin) Create new room
 /deleteroom <roomname> <securitykey>           - (Admin) Delete a room
@@ -178,7 +178,6 @@ Users can change their own passwords by providing:
 1. Their username
 2. Their current password
 3. Their new password
-4. Their unique secret key (provided by admin at account creation)
 
 This can be done either:
 - Through the login page interface
