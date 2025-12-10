@@ -1,0 +1,21 @@
+{
+  "name": "streamlit-tca",
+  "version": "1.0.0",
+  "description": "Terminal Communication Array v2.0 - Streamlit Implementation",
+  "main": "app.py",
+  "scripts": {
+    "start": "streamlit run app.py",
+    "dev": "streamlit run app.py --server.port 8501",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["streamlit", "chat", "terminal", "mongodb", "python"],
+  "author": "TCA Development Team",
+  "license": "MIT",
+  "dependencies": {
+    "streamlit": "^1.28.0",
+    "pymongo": "^4.6.0",
+    "bcrypt": "^4.0.1",
+    "python-dotenv": "^1.0.0",
+    "dnspython": "^2.4.2"
+  }
+}
