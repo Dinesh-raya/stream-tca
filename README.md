@@ -1,3 +1,9 @@
+# ⚠️ PROJECT TEMPORARILY SUSPENDED
+
+**WARNING**: This project is currently suspended and should not be used. Development activities have been paused until further notice.
+
+---
+
 # TCA v2.0 Streamlit Implementation
 
 This is a Python Streamlit implementation of the Terminal Communication Array v2.0 chat application.
