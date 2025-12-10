@@ -9,12 +9,12 @@ This is a Python Streamlit implementation of the Terminal Communication Array v2
 - Room-based chat system
 - Real-time messaging (simulated with periodic refresh)
 - Admin panel for user and room management
-- MongoDB integration for persistent storage
+- Supabase PostgreSQL integration for persistent storage
 
 ## Prerequisites
 
 - Python 3.8+
-- MongoDB database (local or Atlas)
+- Supabase account (free tier available)
 
 ## Installation
 
@@ -26,9 +26,41 @@ This is a Python Streamlit implementation of the Terminal Communication Array v2
 
 3. Set up environment variables:
    - Copy `.env.example` to `.env`
-   - Update `MONGODB_URI` with your MongoDB connection string
+   - Update `SUPABASE_URL` and `SUPABASE_KEY` with your Supabase project credentials
 
-4. Run the application:
+4. Set up Supabase tables:
+   - Create a Supabase project at https://supabase.com/
+   - Create the following tables in the Supabase SQL editor:
+     ```sql
+     -- Users table
+     CREATE TABLE users (
+       id SERIAL PRIMARY KEY,
+       username VARCHAR(50) UNIQUE NOT NULL,
+       password TEXT NOT NULL,
+       role VARCHAR(20) DEFAULT 'user',
+       created_at TIMESTAMP DEFAULT NOW()
+     );
+     
+     -- Rooms table
+     CREATE TABLE rooms (
+       id SERIAL PRIMARY KEY,
+       name VARCHAR(50) UNIQUE NOT NULL,
+       allowed_users TEXT[] DEFAULT '{}',
+       is_public BOOLEAN DEFAULT FALSE,
+       created_at TIMESTAMP DEFAULT NOW()
+     );
+     
+     -- Messages table
+     CREATE TABLE messages (
+       id SERIAL PRIMARY KEY,
+       room VARCHAR(50) NOT NULL,
+       username VARCHAR(50) NOT NULL,
+       content TEXT NOT NULL,
+       timestamp TIMESTAMP DEFAULT NOW()
+     );
+     ```
+
+5. Run the application:
    ```
    streamlit run app.py
    ```
@@ -42,9 +74,8 @@ This application is designed for cloud deployment on platforms that support Stre
 - Google Cloud Run
 - AWS Elastic Beanstalk
 
-For MongoDB, you can use:
-- MongoDB Atlas (free tier available)
-- Self-hosted MongoDB instance
+For the database, you can use:
+- Supabase (free tier available with PostgreSQL)
 
 ## Usage
 
@@ -64,7 +95,7 @@ Unlike the original TCA, this version uses a graphical interface rather than tex
 ## Architecture
 
 - `app.py`: Main Streamlit application
-- `database.py`: MongoDB database operations
+- `database.py`: Supabase database operations
 - `requirements.txt`: Python dependencies
 - `.streamlit/config.toml`: Streamlit configuration
 - `.env`: Environment variables (not included in repo)

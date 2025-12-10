@@ -1,51 +1,45 @@
-import pymongo
-import bcrypt
 import os
+import bcrypt
 from datetime import datetime
 from typing import Dict, List, Optional
+from supabase import create_client, Client
 
 class DatabaseManager:
-    """Manages database connections and operations for the TCA application."""
+    """Manages database connections and operations for the TCA application using Supabase."""
     
     def __init__(self):
-        """Initialize database connection."""
-        self.client = None
-        self.db = None
-        self.users_collection = None
-        self.rooms_collection = None
-        self.messages_collection = None
+        """Initialize Supabase client."""
+        self.supabase: Client = None
         self.connect()
     
     def connect(self):
-        """Connect to MongoDB database."""
+        """Connect to Supabase database."""
         try:
-            mongo_uri = os.getenv("MONGODB_URI", "mongodb://localhost:27017/tca_db")
-            self.client = pymongo.MongoClient(mongo_uri)
-            self.db = self.client.tca_db
-            self.users_collection = self.db.users
-            self.rooms_collection = self.db.rooms
-            self.messages_collection = self.db.messages
-            
-            # Create indexes for better performance
-            self.users_collection.create_index("username", unique=True)
-            self.rooms_collection.create_index("name", unique=True)
-            self.messages_collection.create_index("room")
-            self.messages_collection.create_index("timestamp")
-            
+            url = os.getenv("SUPABASE_URL")
+            key = os.getenv("SUPABASE_KEY")
+            if url and key:
+                self.supabase = create_client(url, key)
+            else:
+                print("Supabase credentials not found in environment variables")
         except Exception as e:
-            print(f"Database connection error: {e}")
+            print(f"Supabase connection error: {e}")
     
     def create_user(self, username: str, password: str, role: str = "user") -> bool:
         """Create a new user in the database."""
         try:
+            # Check if user already exists
+            existing_user = self.supabase.table("users").select("*").eq("username", username).execute()
+            if existing_user.data:
+                return False  # User already exists
+            
             hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
-            user_doc = {
+            user_data = {
                 "username": username,
-                "password": hashed_password,
+                "password": hashed_password.decode('utf-8'),
                 "role": role,
-                "created_at": datetime.utcnow()
+                "created_at": datetime.utcnow().isoformat()
             }
-            self.users_collection.insert_one(user_doc)
+            self.supabase.table("users").insert(user_data).execute()
             return True
         except Exception as e:
             print(f"Error creating user: {e}")
@@ -54,12 +48,14 @@ class DatabaseManager:
     def authenticate_user(self, username: str, password: str) -> Optional[Dict]:
         """Authenticate a user and return user data if successful."""
         try:
-            user = self.users_collection.find_one({"username": username})
-            if user and bcrypt.checkpw(password.encode('utf-8'), user["password"]):
-                # Return user data without password
-                user_data = user.copy()
-                del user_data["password"]
-                return user_data
+            response = self.supabase.table("users").select("*").eq("username", username).execute()
+            if response.data:
+                user = response.data[0]
+                if bcrypt.checkpw(password.encode('utf-8'), user["password"].encode('utf-8')):
+                    # Return user data without password
+                    user_data = user.copy()
+                    del user_data["password"]
+                    return user_data
             return None
         except Exception as e:
             print(f"Error authenticating user: {e}")
@@ -68,13 +64,14 @@ class DatabaseManager:
     def get_user_rooms(self, username: str) -> List[str]:
         """Get list of rooms the user has access to."""
         try:
-            # For simplicity, we'll return all rooms for now
-            # In a real implementation, you'd check user permissions
-            rooms = self.rooms_collection.find()
+            # Get all rooms where user is in allowed_users or room is public
+            response = self.supabase.table("rooms").select("name, allowed_users, is_public").execute()
             user_rooms = []
-            for room in rooms:
-                if username in room.get("allowed_users", []) or room.get("is_public", False):
+            
+            for room in response.data:
+                if room.get("is_public", False) or username in room.get("allowed_users", []):
                     user_rooms.append(room["name"])
+                    
             return user_rooms
         except Exception as e:
             print(f"Error fetching user rooms: {e}")
@@ -83,8 +80,13 @@ class DatabaseManager:
     def get_room_messages(self, room_name: str, limit: int = 50) -> List[Dict]:
         """Get recent messages from a room."""
         try:
-            messages = self.messages_collection.find({"room": room_name}).sort("timestamp", -1).limit(limit)
-            return list(messages)
+            response = (self.supabase.table("messages")
+                       .select("*")
+                       .eq("room", room_name)
+                       .order("timestamp", desc=True)
+                       .limit(limit)
+                       .execute())
+            return response.data
         except Exception as e:
             print(f"Error fetching room messages: {e}")
             return []
@@ -92,13 +94,13 @@ class DatabaseManager:
     def save_message(self, room: str, username: str, content: str) -> bool:
         """Save a message to the database."""
         try:
-            message_doc = {
+            message_data = {
                 "room": room,
                 "username": username,
                 "content": content,
-                "timestamp": datetime.utcnow()
+                "timestamp": datetime.utcnow().isoformat()
             }
-            self.messages_collection.insert_one(message_doc)
+            self.supabase.table("messages").insert(message_data).execute()
             return True
         except Exception as e:
             print(f"Error saving message: {e}")
@@ -107,13 +109,18 @@ class DatabaseManager:
     def create_room(self, room_name: str, allowed_users: List[str] = None, is_public: bool = False) -> bool:
         """Create a new room."""
         try:
-            room_doc = {
+            # Check if room already exists
+            existing_room = self.supabase.table("rooms").select("*").eq("name", room_name).execute()
+            if existing_room.data:
+                return False  # Room already exists
+                
+            room_data = {
                 "name": room_name,
                 "allowed_users": allowed_users or [],
                 "is_public": is_public,
-                "created_at": datetime.utcnow()
+                "created_at": datetime.utcnow().isoformat()
             }
-            self.rooms_collection.insert_one(room_doc)
+            self.supabase.table("rooms").insert(room_data).execute()
             return True
         except Exception as e:
             print(f"Error creating room: {e}")
