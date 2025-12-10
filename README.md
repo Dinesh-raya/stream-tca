@@ -24,11 +24,7 @@ This is a Python Streamlit implementation of the Terminal Communication Array v2
    pip install -r requirements.txt
    ```
 
-3. Set up environment variables:
-   - Copy `.env.example` to `.env`
-   - Update `SUPABASE_URL` and `SUPABASE_KEY` with your Supabase project credentials
-
-4. Set up Supabase tables:
+3. Set up Supabase tables:
    - Create a Supabase project at https://supabase.com/
    - Create the following tables in the Supabase SQL editor:
      ```sql
@@ -58,6 +54,14 @@ This is a Python Streamlit implementation of the Terminal Communication Array v2
        content TEXT NOT NULL,
        timestamp TIMESTAMP DEFAULT NOW()
      );
+     ```
+
+4. Configure Streamlit secrets:
+   - Create a `secrets.toml` file in your Streamlit deployment environment
+   - Add your Supabase credentials:
+     ```toml
+     SUPABASE_URL = "your_supabase_project_url"
+     SUPABASE_KEY = "your_supabase_anon_key"
      ```
 
 5. Run the application:
@@ -98,7 +102,7 @@ Unlike the original TCA, this version uses a graphical interface rather than tex
 - `database.py`: Supabase database operations
 - `requirements.txt`: Python dependencies
 - `.streamlit/config.toml`: Streamlit configuration
-- `.env`: Environment variables (not included in repo)
+- `secrets.toml`: Streamlit secrets (not included in repo)
 
 ## License
 

@@ -1,4 +1,4 @@
-import os
+import streamlit as st
 import bcrypt
 from datetime import datetime
 from typing import Dict, List, Optional
@@ -13,14 +13,15 @@ class DatabaseManager:
         self.connect()
     
     def connect(self):
-        """Connect to Supabase database."""
+        """Connect to Supabase database using Streamlit secrets."""
         try:
-            url = os.getenv("SUPABASE_URL")
-            key = os.getenv("SUPABASE_KEY")
+            # Use Streamlit secrets instead of environment variables
+            url = st.secrets["SUPABASE_URL"]
+            key = st.secrets["SUPABASE_KEY"]
             if url and key:
                 self.supabase = create_client(url, key)
             else:
-                print("Supabase credentials not found in environment variables")
+                print("Supabase credentials not found in Streamlit secrets")
         except Exception as e:
             print(f"Supabase connection error: {e}")
     
