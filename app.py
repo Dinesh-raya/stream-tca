@@ -239,51 +239,95 @@ def send_regular_message(message):
     else:
         st.text("Error: Not in a room or direct message. Use /join <room> or /dm <user> first.")
 
+def get_contextual_commands():
+    """Get contextual command suggestions based on current state."""
+    commands = []
+    
+    if not st.session_state.current_room and not st.session_state.direct_message_target:
+        # In lobby/main context
+        commands.extend([
+            ("/dm <username>", "Start a direct message with a user"),
+            ("/join <room>", "Join a chat room"),
+            ("/listrooms", "List available rooms"),
+            ("/help", "Show help information"),
+            ("/logout", "Log out of the application")
+        ])
+    else:
+        # In room or DM context
+        commands.extend([
+            ("/quit", "Leave the current room or DM"),
+            ("/help", "Show help information"),
+            ("/logout", "Log out of the application")
+        ])
+        
+        # Add admin commands if user is admin
+        if st.session_state.user_data.get('role') == 'admin':
+            commands.extend([
+                ("/adduser <username> <password> <securitykey>", "Create a new user"),
+                ("/createroom <roomname> <securitykey>", "Create a new room"),
+                ("/giveaccess <user1,user2,...> <roomname> <securitykey>", "Grant room access")
+            ])
+    
+    return commands
+
+def show_command_suggestions():
+    """Display contextual command suggestions."""
+    commands = get_contextual_commands()
+    if commands:
+        st.text("\nAvailable commands in current context:")
+        for cmd, desc in commands:
+            st.text(f"  {cmd:<50} - {desc}")
+
 def process_command(command_str):
     """Process terminal commands."""
     st.session_state.command_history.append(command_str)
     
-    # Parse command
-    parts = command_str.split()
-    if not parts:
-        return
+    # Check if it's a command (starts with /) or regular message
+    if command_str.startswith('/'):
+        # Parse command
+        parts = command_str.split()
+        if not parts:
+            return
+            
+        command = parts[0].lower()
         
-    command = parts[0].lower()
-    
-    # Process different commands
-    if command == "/help":
-        show_help()
-    elif command == "/listrooms":
-        list_rooms()
-    elif command == "/join" and len(parts) > 1:
-        join_room(parts[1])
-    elif command == "/users":
-        list_users()
-    elif command == "/dm" and len(parts) > 1:
-        start_dm(parts[1])
-    elif command == "/exit":
-        exit_room_or_dm()
-    elif command == "/logout":
-        logout()
-    elif command == "/quit":
-        st.text("Goodbye! Thanks for using TCA v2.0.")
-        st.session_state.logged_in = False
-        st.session_state.user_data = None
-        st.session_state.current_room = None
-        st.session_state.direct_message_target = None
-        st.session_state.messages = []
-        st.session_state.rooms = []
-        st.session_state.security_key = None
-        st.experimental_rerun()
-    elif command == "/adduser" and len(parts) > 3 and st.session_state.user_data.get('role') == 'admin':
-        add_user(parts[1], parts[2], parts[3])
-    elif command == "/changepass" and len(parts) > 3:
-        change_password(parts[1], parts[2], parts[3])
-    elif command == "/createroom" and len(parts) > 2 and st.session_state.user_data.get('role') == 'admin':
-        create_room(parts[1], parts[2])
-    elif command == "/giveaccess" and len(parts) > 3 and st.session_state.user_data.get('role') == 'admin':
-        # Parse users list (comma separated)
-        give_access(parts[1], parts[2], parts[3])
+        # Process different commands
+        if command == "/help":
+            show_help()
+            show_command_suggestions()
+        elif command == "/listrooms":
+            list_rooms()
+        elif command == "/join" and len(parts) > 1:
+            join_room(parts[1])
+        elif command == "/users":
+            list_users()
+        elif command == "/dm" and len(parts) > 1:
+            start_dm(parts[1])
+        elif command == "/exit":
+            exit_room_or_dm()
+        elif command == "/logout":
+            logout()
+        elif command == "/quit":
+            st.text("Goodbye! Thanks for using TCA v2.0.")
+            st.session_state.logged_in = False
+            st.session_state.user_data = None
+            st.session_state.current_room = None
+            st.session_state.direct_message_target = None
+            st.session_state.messages = []
+            st.session_state.rooms = []
+            st.session_state.security_key = None
+            st.experimental_rerun()
+        elif command == "/adduser" and len(parts) > 3 and st.session_state.user_data.get('role') == 'admin':
+            add_user(parts[1], parts[2], parts[3])
+        elif command == "/changepass" and len(parts) > 3:
+            change_password(parts[1], parts[2], parts[3])
+        elif command == "/createroom" and len(parts) > 2 and st.session_state.user_data.get('role') == 'admin':
+            create_room(parts[1], parts[2])
+        elif command == "/giveaccess" and len(parts) > 3 and st.session_state.user_data.get('role') == 'admin':
+            # Parse users list (comma separated)
+            give_access(parts[1], parts[2], parts[3])
+        else:
+            st.text(f"Unknown command: {command}. Type /help for available commands.")
     else:
         # Treat as regular message if not a recognized command
         send_regular_message(command_str)
@@ -301,7 +345,7 @@ def terminal_interface():
     elif st.session_state.direct_message_target:
         st.caption(f"👤 Direct Message: {st.session_state.direct_message_target}")
     else:
-        st.caption("💬 No room or DM selected")
+        st.caption("💬 Lobby - Not in any room or DM")
     
     # Display messages in terminal format
     message_container = st.container()
@@ -311,12 +355,16 @@ def terminal_interface():
             for message in st.session_state.messages:
                 st.text(f"[{message['timestamp']}] {message['username']}: {message['content']}")
         else:
-            st.text("System: Welcome to TCA v2.0! Type /help for available commands.")
+            st.text("System: Welcome to TCA v2.0!")
+            st.text("Type /help for available commands or start chatting!")
+    
+    # Show contextual command suggestions
+    show_command_suggestions()
     
     # Command input
     with st.form(key="command_form", clear_on_submit=True):
-        command_input = st.text_input("Enter command:", key="command_input")
-        submit_button = st.form_submit_button("Execute")
+        command_input = st.text_input("Enter command or message:", key="command_input")
+        submit_button = st.form_submit_button("Send")
         
         if submit_button and command_input.strip():
             process_command(command_input.strip())

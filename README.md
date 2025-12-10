@@ -12,6 +12,8 @@ This is a Python Streamlit implementation of the Terminal Communication Array v2
 - Admin panel for user and room management
 - Supabase PostgreSQL integration for persistent storage
 - Security key validation for administrative commands
+- Discord-like command interface with contextual suggestions
+- Clean separation between commands and regular chat messages
 
 ## Prerequisites
 
@@ -94,9 +96,33 @@ For the database, you can use:
 
 ## Usage
 
+### Discord-like Command Interface
+
+The application features a Discord-like command interface where users can interact using slash commands. The interface provides contextual command suggestions based on the user's current state.
+
+#### Contextual Command States:
+
+1. **Lobby/Main Context** (when not in any room or DM):
+   - `/dm <username>` - Start a direct message with a user
+   - `/join <room>` - Join a chat room
+   - `/listrooms` - List available rooms
+   - `/help` - Show help information
+   - `/logout` - Log out of the application
+
+2. **In Room or DM Context**:
+   - Type messages directly to chat in the current room/DM
+   - `/quit` - Leave the current room or DM
+   - `/help` - Show help information
+   - `/logout` - Log out of the application
+
+3. **Administrative Commands** (available to admin users in any context):
+   - `/adduser <username> <password> <securitykey>` - Create a new user
+   - `/createroom <roomname> <securitykey>` - Create a new room
+   - `/giveaccess <user1,user2,...> <roomname> <securitykey>` - Grant room access
+
 ### Terminal Commands
 
-The application uses a terminal command interface. Available commands:
+All commands start with '/'. Available commands:
 
 ```
 /help                                          - Show this help
@@ -113,6 +139,10 @@ The application uses a terminal command interface. Available commands:
 /giveaccess <user1,user2,...> <roomname> <securitykey> - (Admin) Grant room access to users
 /quit                                          - Quit the app
 ```
+
+### Chatting
+
+When in a room or direct message context, any text input that doesn't start with '/' will be treated as a chat message and sent to the current conversation.
 
 ### Administrative Operations
 
