@@ -100,6 +100,20 @@ For the database, you can use:
 
 ## Usage
 
+### Initial Setup
+
+1. **Create the first admin user manually in the database:**
+   - Access your Supabase SQL Editor
+   - Run the following SQL command to create your admin user:
+   ```sql
+   INSERT INTO users (username, password, role) 
+   VALUES ('your_admin_username', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj/RK.PZvO.S', 'admin');
+   ```
+   - Note: The password hash corresponds to "admin123" - you should change this after first login
+
+2. **Login with your admin credentials**
+3. **Use the admin panel to create additional users as needed**
+
 ### Discord-like Command Interface
 
 The application features a Discord-like command interface where users can interact using slash commands. The interface provides contextual command suggestions based on the user's current state.
@@ -172,17 +186,6 @@ This can be done either:
 ### Administrative Operations
 
 Administrative commands require a security key. The default key is `TCA_ADMIN_KEY_2023`. In a production environment, this should be changed and stored securely.
-
-1. Login with admin credentials:
-   - admin / admin123 (Administrator)
-
-2. Use administrative commands with the security key:
-   - `/adduser newuser newpassword TCA_ADMIN_KEY_2023`
-   - `/createroom newroom TCA_ADMIN_KEY_2023`
-   - `/deleteroom oldroom TCA_ADMIN_KEY_2023`
-   - `/deletemessage 123 TCA_ADMIN_KEY_2023`
-   - `/cleanup TCA_ADMIN_KEY_2023`
-   - `/giveaccess user1,user2 newroom TCA_ADMIN_KEY_2023`
 
 ### Database Management Features
 

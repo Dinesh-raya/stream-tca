@@ -50,14 +50,6 @@ def login_page():
         else:
             st.error("Invalid username or password")
     
-    # Info about demo credentials
-    st.info("""
-    Demo Accounts:
-    - admin / admin123 (Administrator)
-    - user1 / password1 (User)
-    - user2 / password2 (User)
-    """)
-    
     # Password change section
     st.subheader("Change Password")
     change_username = st.text_input("Username for Password Change")
