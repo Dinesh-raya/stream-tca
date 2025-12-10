@@ -25,42 +25,65 @@ if 'rooms' not in st.session_state:
 if 'command_history' not in st.session_state:
     st.session_state.command_history = []
     
-if 'security_key' not in st.session_state:
-    st.session_state.security_key = None
+if 'show_reset_password' not in st.session_state:
+    st.session_state.show_reset_password = False
 
 def login_page():
     """Display the login page."""
     st.title("Terminal Communication Array v2.0")
     st.subheader("Secure Terminal Login")
     
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
+    # Toggle for password reset
+    if st.button("Forgot Password?"):
+        st.session_state.show_reset_password = not st.session_state.show_reset_password
     
-    if st.button("Login"):
-        user_data = db_manager.authenticate_user(username, password)
-        if user_data:
-            st.session_state.logged_in = True
-            st.session_state.user_data = user_data
-            st.session_state.rooms = db_manager.get_user_rooms(username)
-            st.success(f"Welcome, {username}!")
-            st.experimental_rerun()
-        else:
-            st.error("Invalid username or password")
-    
-    # Password change section
-    st.subheader("Change Password")
-    change_username = st.text_input("Username for Password Change")
-    old_password = st.text_input("Old Password", type="password", key="old_password")
-    new_password = st.text_input("New Password", type="password", key="new_password")
-    
-    if st.button("Change Password"):
-        if change_username and old_password and new_password:
-            if db_manager.change_user_password(change_username, old_password, new_password):
-                st.success("Password changed successfully!")
+    if st.session_state.show_reset_password:
+        st.subheader("Reset Password")
+        reset_username = st.text_input("Username for Password Reset")
+        reset_old_password = st.text_input("Old Password", type="password", key="reset_old_password")
+        reset_new_password = st.text_input("New Password", type="password", key="reset_new_password")
+        
+        if st.button("Reset Password"):
+            if reset_username and reset_old_password and reset_new_password:
+                if db_manager.reset_user_password_unauthenticated(reset_username, reset_old_password, reset_new_password):
+                    st.success("Password reset successfully! You can now login with your new password.")
+                    st.session_state.show_reset_password = False
+                else:
+                    st.error("Failed to reset password. Please check your credentials.")
             else:
-                st.error("Failed to change password. Please check your credentials.")
-        else:
-            st.error("Please fill in all fields.")
+                st.error("Please fill in all fields.")
+        
+        if st.button("Back to Login"):
+            st.session_state.show_reset_password = False
+            st.experimental_rerun()
+    else:
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+        
+        if st.button("Login"):
+            user_data = db_manager.authenticate_user(username, password)
+            if user_data:
+                st.session_state.logged_in = True
+                st.session_state.user_data = user_data
+                st.session_state.rooms = db_manager.get_user_rooms(username)
+                st.success(f"Welcome, {username}!")
+                st.experimental_rerun()
+            else:
+                st.error("Invalid username or password")
+        
+        # Password change section for authenticated users
+        if st.session_state.logged_in:
+            st.subheader("Change Password")
+            change_new_password = st.text_input("New Password", type="password", key="change_new_password")
+            
+            if st.button("Change Password"):
+                if change_new_password:
+                    if db_manager.change_user_password_authenticated(st.session_state.user_data['username'], change_new_password):
+                        st.success("Password changed successfully!")
+                    else:
+                        st.error("Failed to change password.")
+                else:
+                    st.error("Please enter a new password.")
 
 def logout():
     """Handle user logout."""
@@ -70,7 +93,7 @@ def logout():
     st.session_state.direct_message_target = None
     st.session_state.messages = []
     st.session_state.rooms = []
-    st.session_state.security_key = None
+    st.session_state.show_reset_password = False
     st.success("You have been logged out successfully.")
     st.experimental_rerun()
 
@@ -118,7 +141,8 @@ def show_help():
 /dm <username>                                 - Start direct message
 /exit                                          - Exit DM or leave room
 /logout                                        - Logout
-/changepass <username> <oldpass> <newpass>     - Change user password
+/changepass <newpass>                          - Change your password (authenticated users)
+/resetpass <username> <oldpass> <newpass>      - Reset password (unauthenticated users)
 /adduser <username> <password> <securitykey>   - (Admin) Create new user
 /createroom <roomname> <securitykey>           - (Admin) Create new room
 /deleteroom <roomname> <securitykey>           - (Admin) Delete a room
@@ -190,12 +214,19 @@ def validate_security_key(security_key):
         # Fallback to default if not configured (for development)
         return security_key == "TCA_ADMIN_KEY_2023"
 
-def change_password(username, old_pass, new_pass):
-    """Change user password."""
-    if db_manager.change_user_password(username, old_pass, new_pass):
-        st.text(f"Password for user '{username}' changed successfully.")
+def change_password(new_pass):
+    """Change user password for authenticated users."""
+    if db_manager.change_user_password_authenticated(st.session_state.user_data['username'], new_pass):
+        st.text("Password changed successfully.")
     else:
-        st.text(f"Error: Failed to change password for user '{username}'. Please check credentials.")
+        st.text("Error: Failed to change password.")
+
+def reset_password(username, old_pass, new_pass):
+    """Reset user password for unauthenticated users."""
+    if db_manager.reset_user_password_unauthenticated(username, old_pass, new_pass):
+        st.text(f"Password for user '{username}' reset successfully.")
+    else:
+        st.text(f"Error: Failed to reset password for user '{username}'. Please check credentials.")
 
 def add_user(username, password, security_key):
     """Add a new user (admin only)."""
@@ -331,7 +362,7 @@ def get_contextual_commands():
         else:
             # Add user command for changing password
             commands.extend([
-                ("/changepass <username> <oldpass> <newpass>", "Change your password")
+                ("/changepass <newpass>", "Change your password")
             ])
     
     return commands
@@ -381,10 +412,11 @@ def process_command(command_str):
             st.session_state.direct_message_target = None
             st.session_state.messages = []
             st.session_state.rooms = []
-            st.session_state.security_key = None
             st.experimental_rerun()
-        elif command == "/changepass" and len(parts) > 3:
-            change_password(parts[1], parts[2], parts[3])
+        elif command == "/changepass" and len(parts) > 1:
+            change_password(parts[1])
+        elif command == "/resetpass" and len(parts) > 3:
+            reset_password(parts[1], parts[2], parts[3])
         elif command == "/adduser" and len(parts) > 3 and st.session_state.user_data.get('role') == 'admin':
             add_user(parts[1], parts[2], parts[3])
         elif command == "/addmultipleusers" and len(parts) > 2 and st.session_state.user_data.get('role') == 'admin':
@@ -414,6 +446,92 @@ def process_command(command_str):
     else:
         # Treat as regular message if not a recognized command
         send_regular_message(command_str)
+
+def admin_panel():
+    """Display simplified admin panel for user and room management."""
+    st.title("Admin Panel")
+    
+    # User management section
+    st.header("User Management")
+    
+    st.subheader("Create New User")
+    with st.form(key="create_user_form"):
+        new_username = st.text_input("Username")
+        new_password = st.text_input("Password", type="password")
+        user_role = st.selectbox("Role", ["user", "admin"])
+        create_user_button = st.form_submit_button("Create User")
+        
+        if create_user_button and new_username and new_password:
+            if db_manager.create_user(new_username, new_password, user_role):
+                st.success(f"User {new_username} created successfully!")
+            else:
+                st.error("Failed to create user. Username may already exist.")
+    
+    st.subheader("Batch User Creation")
+    st.caption("Enter users in format: username1:password1,username2:password2,...")
+    with st.form(key="batch_create_user_form"):
+        batch_users = st.text_area("Users (comma separated)", height=100)
+        batch_create_button = st.form_submit_button("Create Users")
+        
+        if batch_create_button and batch_users:
+            users_list = batch_users.split(',')
+            users_data = []
+            for user_pair in users_list:
+                if ':' in user_pair:
+                    username, password = user_pair.split(':', 1)
+                    users_data.append({"username": username.strip(), "password": password.strip()})
+            
+            if users_data:
+                results = db_manager.create_multiple_users(users_data, "user")
+                st.write("Batch user creation results:")
+                for username, success in results.items():
+                    if success:
+                        st.success(f"✓ User '{username}' created successfully.")
+                    else:
+                        st.error(f"✗ Failed to create user '{username}'. Username may already exist.")
+            else:
+                st.error("Invalid format. Please use username:password pairs separated by commas.")
+    
+    # Room management section
+    st.header("Room Management")
+    
+    st.subheader("Create New Room")
+    with st.form(key="create_room_form"):
+        room_name = st.text_input("Room Name")
+        is_public = st.checkbox("Public Room (accessible to all users)")
+        create_room_button = st.form_submit_button("Create Room")
+        
+        if create_room_button and room_name:
+            allowed_users = [st.session_state.user_data['username']] if not is_public else []
+            if db_manager.create_room(room_name, allowed_users, is_public):
+                st.success(f"Room {room_name} created successfully!")
+                # Refresh rooms list
+                st.session_state.rooms = db_manager.get_user_rooms(st.session_state.user_data['username'])
+            else:
+                st.error("Failed to create room. Room name may already exist.")
+    
+    st.subheader("Delete Room")
+    with st.form(key="delete_room_form"):
+        room_to_delete = st.selectbox("Select Room to Delete", st.session_state.rooms)
+        confirm_delete = st.checkbox("Confirm deletion (this will also delete all messages in the room)")
+        delete_room_button = st.form_submit_button("Delete Room")
+        
+        if delete_room_button and room_to_delete and confirm_delete:
+            if db_manager.delete_room(room_to_delete):
+                st.success(f"Room {room_to_delete} deleted successfully!")
+                # Refresh rooms list
+                st.session_state.rooms = db_manager.get_user_rooms(st.session_state.user_data['username'])
+            else:
+                st.error(f"Failed to delete room {room_to_delete}.")
+    
+    # Database management section
+    st.header("Database Management")
+    
+    st.info("Automatic message cleanup runs daily to remove messages older than 3 days.")
+    
+    if st.button("Run Manual Cleanup Now"):
+        deleted_count = db_manager.cleanup_old_messages()
+        st.success(f"Manual cleanup completed. {deleted_count} old messages deleted.")
 
 def terminal_interface():
     """Display the main terminal interface."""
@@ -451,91 +569,6 @@ def terminal_interface():
         
         if submit_button and command_input.strip():
             process_command(command_input.strip())
-
-def admin_panel():
-    """Display admin panel for user and room management."""
-    st.title("Admin Panel")
-    
-    # User management tab
-    user_tab, room_tab, db_tab = st.tabs(["User Management", "Room Management", "Database Management"])
-    
-    with user_tab:
-        st.subheader("Create New User")
-        with st.form(key="create_user_form"):
-            new_username = st.text_input("Username")
-            new_password = st.text_input("Password", type="password")
-            user_role = st.selectbox("Role", ["user", "admin"])
-            create_user_button = st.form_submit_button("Create User")
-            
-            if create_user_button and new_username and new_password:
-                if db_manager.create_user(new_username, new_password, user_role):
-                    st.success(f"User {new_username} created successfully!")
-                else:
-                    st.error("Failed to create user. Username may already exist.")
-        
-        st.subheader("Batch User Creation")
-        st.caption("Enter users in format: username1:password1,username2:password2,...")
-        with st.form(key="batch_create_user_form"):
-            batch_users = st.text_area("Users (comma separated)", height=100)
-            batch_create_button = st.form_submit_button("Create Users")
-            
-            if batch_create_button and batch_users:
-                users_list = batch_users.split(',')
-                users_data = []
-                for user_pair in users_list:
-                    if ':' in user_pair:
-                        username, password = user_pair.split(':', 1)
-                        users_data.append({"username": username.strip(), "password": password.strip()})
-                
-                if users_data:
-                    results = db_manager.create_multiple_users(users_data, "user")
-                    st.write("Batch user creation results:")
-                    for username, success in results.items():
-                        if success:
-                            st.success(f"✓ User '{username}' created successfully.")
-                        else:
-                            st.error(f"✗ Failed to create user '{username}'. Username may already exist.")
-                else:
-                    st.error("Invalid format. Please use username:password pairs separated by commas.")
-    
-    with room_tab:
-        st.subheader("Create New Room")
-        with st.form(key="create_room_form"):
-            room_name = st.text_input("Room Name")
-            is_public = st.checkbox("Public Room (accessible to all users)")
-            create_room_button = st.form_submit_button("Create Room")
-            
-            if create_room_button and room_name:
-                allowed_users = [st.session_state.user_data['username']] if not is_public else []
-                if db_manager.create_room(room_name, allowed_users, is_public):
-                    st.success(f"Room {room_name} created successfully!")
-                    # Refresh rooms list
-                    st.session_state.rooms = db_manager.get_user_rooms(st.session_state.user_data['username'])
-                else:
-                    st.error("Failed to create room. Room name may already exist.")
-        
-        st.subheader("Delete Room")
-        with st.form(key="delete_room_form"):
-            room_to_delete = st.selectbox("Select Room to Delete", st.session_state.rooms)
-            confirm_delete = st.checkbox("Confirm deletion (this will also delete all messages in the room)")
-            delete_room_button = st.form_submit_button("Delete Room")
-            
-            if delete_room_button and room_to_delete and confirm_delete:
-                if db_manager.delete_room(room_to_delete):
-                    st.success(f"Room {room_to_delete} deleted successfully!")
-                    # Refresh rooms list
-                    st.session_state.rooms = db_manager.get_user_rooms(st.session_state.user_data['username'])
-                else:
-                    st.error(f"Failed to delete room {room_to_delete}.")
-    
-    with db_tab:
-        st.subheader("Database Management")
-        
-        st.info("Automatic message cleanup runs daily to remove messages older than 3 days.")
-        
-        if st.button("Run Manual Cleanup Now"):
-            deleted_count = db_manager.cleanup_old_messages()
-            st.success(f"Manual cleanup completed. {deleted_count} old messages deleted.")
 
 def main():
     """Main application function."""
@@ -592,15 +625,14 @@ def main():
     if not st.session_state.logged_in:
         login_page()
     else:
-        # Show admin panel for admin users
+        # Show admin panel for admin users only
         if st.session_state.user_data.get('role') == 'admin':
-            admin_tab, chat_tab = st.tabs(["Admin Panel", "Terminal Chat"])
-            with admin_tab:
-                admin_panel()
-            with chat_tab:
-                terminal_interface()
-        else:
-            terminal_interface()
+            # Single page with all admin functions
+            admin_panel()
+            st.markdown("---")
+        
+        # Always show terminal interface
+        terminal_interface()
 
 if __name__ == "__main__":
     main()

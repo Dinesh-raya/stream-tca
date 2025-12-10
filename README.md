@@ -17,7 +17,7 @@ This is a Python Streamlit implementation of the Terminal Communication Array v2
 - Automatic message cleanup (3-day retention policy)
 - Admin-only deletion permissions
 - Bulk user creation capabilities
-- User password change without secret keys
+- Simplified password management for authenticated and unauthenticated users
 
 ## Prerequisites
 
@@ -115,6 +115,16 @@ For the database, you can use:
 2. **Login with your admin credentials**
 3. **Use the admin panel to create additional users as needed**
 
+### Security Policy
+
+#### Authentication Requirements
+- All application features require user authentication
+- EXCEPTION: Password reset functionality is accessible without authentication
+
+#### Password Management
+- **Authenticated users** can change their password WITHOUT providing their old password
+- **Unauthenticated users** can reset their password by providing username and old password
+
 ### Discord-like Command Interface
 
 The application features a Discord-like command interface where users can interact using slash commands. The interface provides contextual command suggestions based on the user's current state.
@@ -143,7 +153,8 @@ The application features a Discord-like command interface where users can intera
    - `/giveaccess <user1,user2,...> <roomname> <securitykey>` - Grant room access
 
 4. **User Commands** (available to all users):
-   - `/changepass <username> <oldpass> <newpass>` - Change your password
+   - `/changepass <newpass>` - Change your password (authenticated users)
+   - `/resetpass <username> <oldpass> <newpass>` - Reset password (unauthenticated users)
 
 ### Terminal Commands
 
@@ -158,7 +169,8 @@ All commands start with '/'. Available commands:
 /dm <username>                                 - Start direct message
 /exit                                          - Exit DM or leave room
 /logout                                        - Logout
-/changepass <username> <oldpass> <newpass>     - Change user password
+/changepass <newpass>                          - Change your password (authenticated users)
+/resetpass <username> <oldpass> <newpass>      - Reset password (unauthenticated users)
 /adduser <username> <password> <securitykey>   - (Admin) Create new user
 /createroom <roomname> <securitykey>           - (Admin) Create new room
 /deleteroom <roomname> <securitykey>           - (Admin) Delete a room
@@ -172,16 +184,25 @@ All commands start with '/'. Available commands:
 
 When in a room or direct message context, any text input that doesn't start with '/' will be treated as a chat message and sent to the current conversation.
 
-### Changing Passwords
+### Password Management
 
+#### For Authenticated Users
 Users can change their own passwords by providing:
+1. Their new password
+
+This can be done either:
+- Through the login page interface (when logged in)
+- Using the `/changepass` command in the terminal interface
+
+#### For Unauthenticated Users
+Users who have forgotten their passwords can reset them by providing:
 1. Their username
-2. Their current password
+2. Their old password
 3. Their new password
 
 This can be done either:
-- Through the login page interface
-- Using the `/changepass` command in the terminal interface
+- Through the "Forgot Password?" link on the login page
+- Using the `/resetpass` command in the terminal interface
 
 ### Administrative Operations
 
@@ -193,6 +214,8 @@ To set your admin security key:
    ADMIN_SECURITY_KEY = "your_very_secure_key_here"
    ```
 2. Use this key when executing administrative commands
+
+The admin panel is only visible to users with admin credentials.
 
 ### Database Management Features
 

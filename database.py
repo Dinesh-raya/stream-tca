@@ -97,8 +97,19 @@ class DatabaseManager:
             print(f"Error authenticating user: {e}")
             return None
     
-    def change_user_password(self, username: str, old_password: str, new_password: str) -> bool:
-        """Change a user's password after verifying old password."""
+    def change_user_password_authenticated(self, username: str, new_password: str) -> bool:
+        """Change a user's password without requiring old password (for authenticated users)."""
+        try:
+            # Hash and update the new password
+            hashed_new_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt(rounds=BCRYPT_ROUNDS))
+            self.supabase.table("users").update({"password": hashed_new_password.decode('utf-8')}).eq("username", username).execute()
+            return True
+        except Exception as e:
+            print(f"Error changing user password: {e}")
+            return False
+    
+    def reset_user_password_unauthenticated(self, username: str, old_password: str, new_password: str) -> bool:
+        """Reset a user's password with old password verification (for unauthenticated users)."""
         try:
             # First verify the old password
             response = self.supabase.table("users").select("*").eq("username", username).execute()
@@ -114,7 +125,7 @@ class DatabaseManager:
             self.supabase.table("users").update({"password": hashed_new_password.decode('utf-8')}).eq("username", username).execute()
             return True
         except Exception as e:
-            print(f"Error changing user password: {e}")
+            print(f"Error resetting user password: {e}")
             return False
     
     def get_user_rooms(self, username: str) -> List[str]:
