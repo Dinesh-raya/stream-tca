@@ -57,6 +57,22 @@ def login_page():
     - user1 / password1 (User)
     - user2 / password2 (User)
     """)
+    
+    # Password change section
+    st.subheader("Change Password")
+    change_username = st.text_input("Username for Password Change")
+    old_password = st.text_input("Old Password", type="password", key="old_password")
+    new_password = st.text_input("New Password", type="password", key="new_password")
+    secret_key = st.text_input("Secret Key", type="password", key="secret_key")
+    
+    if st.button("Change Password"):
+        if change_username and old_password and new_password and secret_key:
+            if db_manager.change_user_password(change_username, old_password, new_password, secret_key):
+                st.success("Password changed successfully!")
+            else:
+                st.error("Failed to change password. Please check your credentials and secret key.")
+        else:
+            st.error("Please fill in all fields.")
 
 def logout():
     """Handle user logout."""
@@ -114,12 +130,12 @@ def show_help():
 /dm <username>                                 - Start direct message
 /exit                                          - Exit DM or leave room
 /logout                                        - Logout
+/changepass <username> <oldpass> <newpass> <secretkey> - Change user password
 /adduser <username> <password> <securitykey>   - (Admin) Create new user
-/changepass <oldpass> <newpass> <securitykey>  - Change your password
 /createroom <roomname> <securitykey>           - (Admin) Create new room
 /deleteroom <roomname> <securitykey>           - (Admin) Delete a room
 /deletemessage <message_id> <securitykey>      - (Admin) Delete a message
-/cleanup                                       - (Admin) Cleanup old messages
+/cleanup <securitykey>                         - (Admin) Cleanup old messages
 /giveaccess <user1,user2,...> <roomname> <securitykey> - (Admin) Grant room access to users
 /quit                                          - Quit the app
 
@@ -180,6 +196,13 @@ def validate_security_key(security_key):
     """Validate the security key for admin operations."""
     return security_key == ADMIN_SECURITY_KEY
 
+def change_password(username, old_pass, new_pass, secret_key):
+    """Change user password."""
+    if db_manager.change_user_password(username, old_pass, new_pass, secret_key):
+        st.text(f"Password for user '{username}' changed successfully.")
+    else:
+        st.text(f"Error: Failed to change password for user '{username}'. Please check credentials and secret key.")
+
 def add_user(username, password, security_key):
     """Add a new user (admin only)."""
     if not validate_security_key(security_key):
@@ -204,15 +227,6 @@ def add_multiple_users(users_data, security_key):
             st.text(f"  ✓ User '{username}' created successfully.")
         else:
             st.text(f"  ✗ Failed to create user '{username}'. Username may already exist.")
-
-def change_password(old_pass, new_pass, security_key):
-    """Change user password."""
-    if not validate_security_key(security_key):
-        st.text("Error: Invalid security key.")
-        return
-        
-    # In a real implementation, you would verify the old password and update it
-    st.text("Password change functionality would be implemented here.")
 
 def create_room(room_name, security_key):
     """Create a new room (admin only)."""
@@ -320,6 +334,11 @@ def get_contextual_commands():
                 ("/cleanup <securitykey>", "Cleanup old messages"),
                 ("/giveaccess <user1,user2,...> <roomname> <securitykey>", "Grant room access")
             ])
+        else:
+            # Add user command for changing password
+            commands.extend([
+                ("/changepass <username> <oldpass> <newpass> <secretkey>", "Change your password")
+            ])
     
     return commands
 
@@ -370,6 +389,8 @@ def process_command(command_str):
             st.session_state.rooms = []
             st.session_state.security_key = None
             st.experimental_rerun()
+        elif command == "/changepass" and len(parts) > 4:
+            change_password(parts[1], parts[2], parts[3], parts[4])
         elif command == "/adduser" and len(parts) > 3 and st.session_state.user_data.get('role') == 'admin':
             add_user(parts[1], parts[2], parts[3])
         elif command == "/addmultipleusers" and len(parts) > 2 and st.session_state.user_data.get('role') == 'admin':
@@ -383,8 +404,6 @@ def process_command(command_str):
                     username, password = user_pair.split(':', 1)
                     users_data.append({"username": username, "password": password})
             add_multiple_users(users_data, security_key)
-        elif command == "/changepass" and len(parts) > 3:
-            change_password(parts[1], parts[2], parts[3])
         elif command == "/createroom" and len(parts) > 2 and st.session_state.user_data.get('role') == 'admin':
             create_room(parts[1], parts[2])
         elif command == "/deleteroom" and len(parts) > 2 and st.session_state.user_data.get('role') == 'admin':

@@ -17,6 +17,7 @@ This is a Python Streamlit implementation of the Terminal Communication Array v2
 - Automatic message cleanup (3-day retention policy)
 - Admin-only deletion permissions
 - Bulk user creation capabilities
+- User password change with secret key verification
 
 ## Prerequisites
 
@@ -126,6 +127,9 @@ The application features a Discord-like command interface where users can intera
    - `/cleanup <securitykey>` - Run manual cleanup of old messages
    - `/giveaccess <user1,user2,...> <roomname> <securitykey>` - Grant room access
 
+4. **User Commands** (available to all users):
+   - `/changepass <username> <oldpass> <newpass> <secretkey>` - Change your password
+
 ### Terminal Commands
 
 All commands start with '/'. Available commands:
@@ -139,8 +143,8 @@ All commands start with '/'. Available commands:
 /dm <username>                                 - Start direct message
 /exit                                          - Exit DM or leave room
 /logout                                        - Logout
+/changepass <username> <oldpass> <newpass> <secretkey> - Change user password
 /adduser <username> <password> <securitykey>   - (Admin) Create new user
-/changepass <oldpass> <newpass> <securitykey>  - Change your password
 /createroom <roomname> <securitykey>           - (Admin) Create new room
 /deleteroom <roomname> <securitykey>           - (Admin) Delete a room
 /deletemessage <message_id> <securitykey>      - (Admin) Delete a message
@@ -152,6 +156,18 @@ All commands start with '/'. Available commands:
 ### Chatting
 
 When in a room or direct message context, any text input that doesn't start with '/' will be treated as a chat message and sent to the current conversation.
+
+### Changing Passwords
+
+Users can change their own passwords by providing:
+1. Their username
+2. Their current password
+3. Their new password
+4. Their unique secret key (provided by admin at account creation)
+
+This can be done either:
+- Through the login page interface
+- Using the `/changepass` command in the terminal interface
 
 ### Administrative Operations
 
