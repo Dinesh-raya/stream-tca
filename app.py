@@ -3,9 +3,6 @@ from datetime import datetime
 import os
 from database import db_manager
 
-# Security key for admin operations (in a real app, this would be stored securely)
-ADMIN_SECURITY_KEY = "TCA_ADMIN_KEY_2023"
-
 # Initialize session state variables
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
@@ -186,7 +183,13 @@ def exit_room_or_dm():
 
 def validate_security_key(security_key):
     """Validate the security key for admin operations."""
-    return security_key == ADMIN_SECURITY_KEY
+    # Use Streamlit secrets instead of hardcoded value
+    try:
+        admin_security_key = st.secrets["ADMIN_SECURITY_KEY"]
+        return security_key == admin_security_key
+    except KeyError:
+        # Fallback to default if not configured (for development)
+        return security_key == "TCA_ADMIN_KEY_2023"
 
 def change_password(username, old_pass, new_pass, secret_key):
     """Change user password."""

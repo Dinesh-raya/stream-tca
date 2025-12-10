@@ -75,10 +75,11 @@ This is a Python Streamlit implementation of the Terminal Communication Array v2
 
 4. Configure Streamlit secrets:
    - Create a `secrets.toml` file in your Streamlit deployment environment
-   - Add your Supabase credentials:
+   - Add your Supabase credentials and admin security key:
      ```toml
      SUPABASE_URL = "your_supabase_project_url"
      SUPABASE_KEY = "your_supabase_anon_key"
+     ADMIN_SECURITY_KEY = "your_secure_admin_key_here"
      ```
 
 5. Run the application:
@@ -185,7 +186,14 @@ This can be done either:
 
 ### Administrative Operations
 
-Administrative commands require a security key. The default key is `TCA_ADMIN_KEY_2023`. In a production environment, this should be changed and stored securely.
+Administrative commands require a security key which is configured through Streamlit secrets. For security, never hardcode this value in your application code.
+
+To set your admin security key:
+1. In your Streamlit deployment environment, add the following to your secrets:
+   ```
+   ADMIN_SECURITY_KEY = "your_very_secure_key_here"
+   ```
+2. Use this key when executing administrative commands
 
 ### Database Management Features
 
