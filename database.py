@@ -107,6 +107,36 @@ class DatabaseManager:
             print(f"Error saving message: {e}")
             return False
     
+    def save_direct_message(self, sender: str, recipient: str, content: str) -> bool:
+        """Save a direct message to the database."""
+        try:
+            dm_data = {
+                "sender": sender,
+                "recipient": recipient,
+                "content": content,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            self.supabase.table("direct_messages").insert(dm_data).execute()
+            return True
+        except Exception as e:
+            print(f"Error saving direct message: {e}")
+            return False
+    
+    def get_direct_messages(self, user1: str, user2: str, limit: int = 50) -> List[Dict]:
+        """Get direct messages between two users."""
+        try:
+            response = (self.supabase.table("direct_messages")
+                       .select("*")
+                       .or_(f"sender.eq.{user1},recipient.eq.{user1}")
+                       .or_(f"sender.eq.{user2},recipient.eq.{user2}")
+                       .order("timestamp", desc=True)
+                       .limit(limit)
+                       .execute())
+            return response.data
+        except Exception as e:
+            print(f"Error fetching direct messages: {e}")
+            return []
+    
     def create_room(self, room_name: str, allowed_users: List[str] = None, is_public: bool = False) -> bool:
         """Create a new room."""
         try:
@@ -125,6 +155,25 @@ class DatabaseManager:
             return True
         except Exception as e:
             print(f"Error creating room: {e}")
+            return False
+    
+    def grant_room_access(self, room_name: str, usernames: List[str]) -> bool:
+        """Grant access to users for a room."""
+        try:
+            # Get current room data
+            response = self.supabase.table("rooms").select("allowed_users").eq("name", room_name).execute()
+            if not response.data:
+                return False
+                
+            current_users = response.data[0].get("allowed_users", [])
+            # Add new users to allowed users list
+            updated_users = list(set(current_users + usernames))
+            
+            # Update room with new allowed users
+            self.supabase.table("rooms").update({"allowed_users": updated_users}).eq("name", room_name).execute()
+            return True
+        except Exception as e:
+            print(f"Error granting room access: {e}")
             return False
 
 # Global database instance

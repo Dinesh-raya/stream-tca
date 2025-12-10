@@ -7,9 +7,11 @@ This is a Python Streamlit implementation of the Terminal Communication Array v2
 - Terminal-style interface with green-on-black theme
 - User authentication with password hashing
 - Room-based chat system
+- Direct messaging between users
 - Real-time messaging (simulated with periodic refresh)
 - Admin panel for user and room management
 - Supabase PostgreSQL integration for persistent storage
+- Security key validation for administrative commands
 
 ## Prerequisites
 
@@ -54,6 +56,15 @@ This is a Python Streamlit implementation of the Terminal Communication Array v2
        content TEXT NOT NULL,
        timestamp TIMESTAMP DEFAULT NOW()
      );
+     
+     -- Direct messages table
+     CREATE TABLE direct_messages (
+       id SERIAL PRIMARY KEY,
+       sender VARCHAR(50) NOT NULL,
+       recipient VARCHAR(50) NOT NULL,
+       content TEXT NOT NULL,
+       timestamp TIMESTAMP DEFAULT NOW()
+     );
      ```
 
 4. Configure Streamlit secrets:
@@ -83,18 +94,37 @@ For the database, you can use:
 
 ## Usage
 
-1. Login with one of the default accounts:
+### Terminal Commands
+
+The application uses a terminal command interface. Available commands:
+
+```
+/help                                          - Show this help
+/login <username>                              - Login
+/listrooms                                     - List available rooms
+/join <room>                                   - Join a room
+/users                                         - List users in current room
+/dm <username>                                 - Start direct message
+/exit                                          - Exit DM or leave room
+/logout                                        - Logout
+/adduser <username> <password> <securitykey>   - (Admin) Create new user
+/changepass <oldpass> <newpass> <securitykey>  - Change your password
+/createroom <roomname> <securitykey>           - (Admin) Create new room
+/giveaccess <user1,user2,...> <roomname> <securitykey> - (Admin) Grant room access to users
+/quit                                          - Quit the app
+```
+
+### Administrative Operations
+
+Administrative commands require a security key. The default key is `TCA_ADMIN_KEY_2023`. In a production environment, this should be changed and stored securely.
+
+1. Login with admin credentials:
    - admin / admin123 (Administrator)
-   - user1 / password1 (User)
-   - user2 / password2 (User)
 
-2. Select a room from the dropdown
-3. Send messages using the input field
-4. Administrators can create new users and rooms via the Admin Panel
-
-## Commands
-
-Unlike the original TCA, this version uses a graphical interface rather than text commands. However, future versions may implement command parsing.
+2. Use administrative commands with the security key:
+   - `/adduser newuser newpassword TCA_ADMIN_KEY_2023`
+   - `/createroom newroom TCA_ADMIN_KEY_2023`
+   - `/giveaccess user1,user2 newroom TCA_ADMIN_KEY_2023`
 
 ## Architecture
 
