@@ -4,6 +4,9 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from supabase import create_client, Client
 
+# Configurable bcrypt cost factor (12 is a good balance of security and performance)
+BCRYPT_ROUNDS = 12
+
 class DatabaseManager:
     """Manages database connections and operations for the TCA application using Supabase."""
     
@@ -33,7 +36,7 @@ class DatabaseManager:
             if existing_user.data:
                 return False  # User already exists
             
-            hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+            hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(rounds=BCRYPT_ROUNDS))
             user_data = {
                 "username": username,
                 "password": hashed_password.decode('utf-8'),
@@ -64,7 +67,7 @@ class DatabaseManager:
                     results[username] = False  # User already exists
                     continue
                 
-                hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+                hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(rounds=BCRYPT_ROUNDS))
                 user_data = {
                     "username": username,
                     "password": hashed_password.decode('utf-8'),
@@ -111,7 +114,7 @@ class DatabaseManager:
             # In practice, you would have a separate table or field for secret keys
             
             # Hash and update the new password
-            hashed_new_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
+            hashed_new_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt(rounds=BCRYPT_ROUNDS))
             self.supabase.table("users").update({"password": hashed_new_password.decode('utf-8')}).eq("username", username).execute()
             return True
         except Exception as e:

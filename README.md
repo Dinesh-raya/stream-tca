@@ -5,7 +5,7 @@ This is a Python Streamlit implementation of the Terminal Communication Array v2
 ## Features
 
 - Terminal-style interface with green-on-black theme
-- User authentication with password hashing
+- User authentication with password hashing (bcrypt, 12 rounds)
 - Room-based chat system
 - Direct messaging between users
 - Real-time messaging (simulated with periodic refresh)
@@ -213,6 +213,18 @@ To set your admin security key:
 - Batch user creation through admin panel interface
 - Support for creating users with specified usernames and passwords
 - Results feedback for successful and failed creations
+
+## Security Implementation Details
+
+### Password Hashing
+- Uses bcrypt with 12 rounds for a balance of security and performance
+- All passwords are salted and hashed before storage
+- Authentication validates passwords using bcrypt's secure comparison
+
+### Performance Considerations
+- 12 rounds of bcrypt typically complete in under 100ms
+- Provides strong security while maintaining responsive user experience
+- Can be adjusted based on performance monitoring
 
 ## Architecture
 
