@@ -1,6 +1,6 @@
 import streamlit as st
 import bcrypt
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from supabase import create_client, Client
 
@@ -45,6 +45,38 @@ class DatabaseManager:
         except Exception as e:
             print(f"Error creating user: {e}")
             return False
+    
+    def create_multiple_users(self, users_data: List[Dict[str, str]], admin_role: str = "user") -> Dict[str, bool]:
+        """Create multiple users in the database."""
+        results = {}
+        try:
+            for user_info in users_data:
+                username = user_info.get("username")
+                password = user_info.get("password")
+                
+                if not username or not password:
+                    results[username] = False
+                    continue
+                
+                # Check if user already exists
+                existing_user = self.supabase.table("users").select("*").eq("username", username).execute()
+                if existing_user.data:
+                    results[username] = False  # User already exists
+                    continue
+                
+                hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+                user_data = {
+                    "username": username,
+                    "password": hashed_password.decode('utf-8'),
+                    "role": admin_role,
+                    "created_at": datetime.utcnow().isoformat()
+                }
+                self.supabase.table("users").insert(user_data).execute()
+                results[username] = True
+        except Exception as e:
+            print(f"Error creating multiple users: {e}")
+        
+        return results
     
     def authenticate_user(self, username: str, password: str) -> Optional[Dict]:
         """Authenticate a user and return user data if successful."""
@@ -157,6 +189,29 @@ class DatabaseManager:
             print(f"Error creating room: {e}")
             return False
     
+    def delete_room(self, room_name: str) -> bool:
+        """Delete a room (admin only)."""
+        try:
+            # Delete the room
+            self.supabase.table("rooms").delete().eq("name", room_name).execute()
+            
+            # Also delete all messages in that room
+            self.supabase.table("messages").delete().eq("room", room_name).execute()
+            
+            return True
+        except Exception as e:
+            print(f"Error deleting room: {e}")
+            return False
+    
+    def delete_message(self, message_id: int) -> bool:
+        """Delete a specific message (admin only)."""
+        try:
+            self.supabase.table("messages").delete().eq("id", message_id).execute()
+            return True
+        except Exception as e:
+            print(f"Error deleting message: {e}")
+            return False
+    
     def grant_room_access(self, room_name: str, usernames: List[str]) -> bool:
         """Grant access to users for a room."""
         try:
@@ -175,6 +230,25 @@ class DatabaseManager:
         except Exception as e:
             print(f"Error granting room access: {e}")
             return False
+    
+    def cleanup_old_messages(self) -> int:
+        """Delete messages older than 3 days (72 hours)."""
+        try:
+            # Calculate the cutoff date (3 days ago)
+            cutoff_date = datetime.utcnow() - timedelta(days=3)
+            
+            # Delete old messages from rooms
+            room_response = self.supabase.table("messages").delete().lt("timestamp", cutoff_date.isoformat()).execute()
+            room_deleted_count = len(room_response.data) if room_response.data else 0
+            
+            # Delete old direct messages
+            dm_response = self.supabase.table("direct_messages").delete().lt("timestamp", cutoff_date.isoformat()).execute()
+            dm_deleted_count = len(dm_response.data) if dm_response.data else 0
+            
+            return room_deleted_count + dm_deleted_count
+        except Exception as e:
+            print(f"Error cleaning up old messages: {e}")
+            return 0
 
 # Global database instance
 db_manager = DatabaseManager()

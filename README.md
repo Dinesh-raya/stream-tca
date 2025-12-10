@@ -14,6 +14,9 @@ This is a Python Streamlit implementation of the Terminal Communication Array v2
 - Security key validation for administrative commands
 - Discord-like command interface with contextual suggestions
 - Clean separation between commands and regular chat messages
+- Automatic message cleanup (3-day retention policy)
+- Admin-only deletion permissions
+- Bulk user creation capabilities
 
 ## Prerequisites
 
@@ -118,6 +121,9 @@ The application features a Discord-like command interface where users can intera
 3. **Administrative Commands** (available to admin users in any context):
    - `/adduser <username> <password> <securitykey>` - Create a new user
    - `/createroom <roomname> <securitykey>` - Create a new room
+   - `/deleteroom <roomname> <securitykey>` - Delete a room
+   - `/deletemessage <message_id> <securitykey>` - Delete a specific message
+   - `/cleanup <securitykey>` - Run manual cleanup of old messages
    - `/giveaccess <user1,user2,...> <roomname> <securitykey>` - Grant room access
 
 ### Terminal Commands
@@ -136,6 +142,9 @@ All commands start with '/'. Available commands:
 /adduser <username> <password> <securitykey>   - (Admin) Create new user
 /changepass <oldpass> <newpass> <securitykey>  - Change your password
 /createroom <roomname> <securitykey>           - (Admin) Create new room
+/deleteroom <roomname> <securitykey>           - (Admin) Delete a room
+/deletemessage <message_id> <securitykey>      - (Admin) Delete a message
+/cleanup <securitykey>                         - (Admin) Cleanup old messages
 /giveaccess <user1,user2,...> <roomname> <securitykey> - (Admin) Grant room access to users
 /quit                                          - Quit the app
 ```
@@ -154,7 +163,29 @@ Administrative commands require a security key. The default key is `TCA_ADMIN_KE
 2. Use administrative commands with the security key:
    - `/adduser newuser newpassword TCA_ADMIN_KEY_2023`
    - `/createroom newroom TCA_ADMIN_KEY_2023`
+   - `/deleteroom oldroom TCA_ADMIN_KEY_2023`
+   - `/deletemessage 123 TCA_ADMIN_KEY_2023`
+   - `/cleanup TCA_ADMIN_KEY_2023`
    - `/giveaccess user1,user2 newroom TCA_ADMIN_KEY_2023`
+
+### Database Management Features
+
+#### Automatic Message Cleanup
+- Messages are automatically retained for only 3 days
+- Data retention policy removes messages older than 72 hours
+- Cleanup process runs automatically without manual intervention
+- Admins can trigger manual cleanup with `/cleanup` command
+
+#### Admin-Only Deletion Permissions
+- Room deletion functionality restricted to admin users only
+- Admins can delete individual messages within any room
+- Proper authorization checks prevent non-admin users from performing deletion operations
+
+#### Bulk User Creation
+- Admin users can create multiple user accounts simultaneously
+- Batch user creation through admin panel interface
+- Support for creating users with specified usernames and passwords
+- Results feedback for successful and failed creations
 
 ## Architecture
 

@@ -117,6 +117,9 @@ def show_help():
 /adduser <username> <password> <securitykey>   - (Admin) Create new user
 /changepass <oldpass> <newpass> <securitykey>  - Change your password
 /createroom <roomname> <securitykey>           - (Admin) Create new room
+/deleteroom <roomname> <securitykey>           - (Admin) Delete a room
+/deletemessage <message_id> <securitykey>      - (Admin) Delete a message
+/cleanup                                       - (Admin) Cleanup old messages
 /giveaccess <user1,user2,...> <roomname> <securitykey> - (Admin) Grant room access to users
 /quit                                          - Quit the app
 
@@ -188,6 +191,20 @@ def add_user(username, password, security_key):
     else:
         st.text(f"Error: Failed to create user '{username}'. Username may already exist.")
 
+def add_multiple_users(users_data, security_key):
+    """Add multiple users (admin only)."""
+    if not validate_security_key(security_key):
+        st.text("Error: Invalid security key.")
+        return
+        
+    results = db_manager.create_multiple_users(users_data, "user")
+    st.text("Batch user creation results:")
+    for username, success in results.items():
+        if success:
+            st.text(f"  ✓ User '{username}' created successfully.")
+        else:
+            st.text(f"  ✗ Failed to create user '{username}'. Username may already exist.")
+
 def change_password(old_pass, new_pass, security_key):
     """Change user password."""
     if not validate_security_key(security_key):
@@ -209,6 +226,39 @@ def create_room(room_name, security_key):
         st.session_state.rooms = db_manager.get_user_rooms(st.session_state.user_data['username'])
     else:
         st.text(f"Error: Failed to create room '{room_name}'. Room may already exist.")
+
+def delete_room(room_name, security_key):
+    """Delete a room (admin only)."""
+    if not validate_security_key(security_key):
+        st.text("Error: Invalid security key.")
+        return
+        
+    if db_manager.delete_room(room_name):
+        st.text(f"Room '{room_name}' deleted successfully.")
+        # Refresh rooms list
+        st.session_state.rooms = db_manager.get_user_rooms(st.session_state.user_data['username'])
+    else:
+        st.text(f"Error: Failed to delete room '{room_name}'.")
+
+def delete_message(message_id, security_key):
+    """Delete a message (admin only)."""
+    if not validate_security_key(security_key):
+        st.text("Error: Invalid security key.")
+        return
+        
+    if db_manager.delete_message(int(message_id)):
+        st.text(f"Message #{message_id} deleted successfully.")
+    else:
+        st.text(f"Error: Failed to delete message #{message_id}.")
+
+def cleanup_old_messages(security_key):
+    """Cleanup old messages (admin only)."""
+    if not validate_security_key(security_key):
+        st.text("Error: Invalid security key.")
+        return
+        
+    deleted_count = db_manager.cleanup_old_messages()
+    st.text(f"Cleanup completed. {deleted_count} old messages deleted.")
 
 def give_access(users_str, room_name, security_key):
     """Give access to users for a room (admin only)."""
@@ -265,6 +315,9 @@ def get_contextual_commands():
             commands.extend([
                 ("/adduser <username> <password> <securitykey>", "Create a new user"),
                 ("/createroom <roomname> <securitykey>", "Create a new room"),
+                ("/deleteroom <roomname> <securitykey>", "Delete a room"),
+                ("/deletemessage <message_id> <securitykey>", "Delete a message"),
+                ("/cleanup <securitykey>", "Cleanup old messages"),
                 ("/giveaccess <user1,user2,...> <roomname> <securitykey>", "Grant room access")
             ])
     
@@ -319,10 +372,27 @@ def process_command(command_str):
             st.experimental_rerun()
         elif command == "/adduser" and len(parts) > 3 and st.session_state.user_data.get('role') == 'admin':
             add_user(parts[1], parts[2], parts[3])
+        elif command == "/addmultipleusers" and len(parts) > 2 and st.session_state.user_data.get('role') == 'admin':
+            # Parse users data from command (format: username1:password1,username2:password2,...)
+            users_str = parts[1]
+            security_key = parts[2]
+            users_list = users_str.split(',')
+            users_data = []
+            for user_pair in users_list:
+                if ':' in user_pair:
+                    username, password = user_pair.split(':', 1)
+                    users_data.append({"username": username, "password": password})
+            add_multiple_users(users_data, security_key)
         elif command == "/changepass" and len(parts) > 3:
             change_password(parts[1], parts[2], parts[3])
         elif command == "/createroom" and len(parts) > 2 and st.session_state.user_data.get('role') == 'admin':
             create_room(parts[1], parts[2])
+        elif command == "/deleteroom" and len(parts) > 2 and st.session_state.user_data.get('role') == 'admin':
+            delete_room(parts[1], parts[2])
+        elif command == "/deletemessage" and len(parts) > 2 and st.session_state.user_data.get('role') == 'admin':
+            delete_message(parts[1], parts[2])
+        elif command == "/cleanup" and len(parts) > 1 and st.session_state.user_data.get('role') == 'admin':
+            cleanup_old_messages(parts[1])
         elif command == "/giveaccess" and len(parts) > 3 and st.session_state.user_data.get('role') == 'admin':
             # Parse users list (comma separated)
             give_access(parts[1], parts[2], parts[3])
@@ -374,7 +444,7 @@ def admin_panel():
     st.title("Admin Panel")
     
     # User management tab
-    user_tab, room_tab = st.tabs(["User Management", "Room Management"])
+    user_tab, room_tab, db_tab = st.tabs(["User Management", "Room Management", "Database Management"])
     
     with user_tab:
         st.subheader("Create New User")
@@ -389,6 +459,31 @@ def admin_panel():
                     st.success(f"User {new_username} created successfully!")
                 else:
                     st.error("Failed to create user. Username may already exist.")
+        
+        st.subheader("Batch User Creation")
+        st.caption("Enter users in format: username1:password1,username2:password2,...")
+        with st.form(key="batch_create_user_form"):
+            batch_users = st.text_area("Users (comma separated)", height=100)
+            batch_create_button = st.form_submit_button("Create Users")
+            
+            if batch_create_button and batch_users:
+                users_list = batch_users.split(',')
+                users_data = []
+                for user_pair in users_list:
+                    if ':' in user_pair:
+                        username, password = user_pair.split(':', 1)
+                        users_data.append({"username": username.strip(), "password": password.strip()})
+                
+                if users_data:
+                    results = db_manager.create_multiple_users(users_data, "user")
+                    st.write("Batch user creation results:")
+                    for username, success in results.items():
+                        if success:
+                            st.success(f"✓ User '{username}' created successfully.")
+                        else:
+                            st.error(f"✗ Failed to create user '{username}'. Username may already exist.")
+                else:
+                    st.error("Invalid format. Please use username:password pairs separated by commas.")
     
     with room_tab:
         st.subheader("Create New Room")
@@ -405,6 +500,29 @@ def admin_panel():
                     st.session_state.rooms = db_manager.get_user_rooms(st.session_state.user_data['username'])
                 else:
                     st.error("Failed to create room. Room name may already exist.")
+        
+        st.subheader("Delete Room")
+        with st.form(key="delete_room_form"):
+            room_to_delete = st.selectbox("Select Room to Delete", st.session_state.rooms)
+            confirm_delete = st.checkbox("Confirm deletion (this will also delete all messages in the room)")
+            delete_room_button = st.form_submit_button("Delete Room")
+            
+            if delete_room_button and room_to_delete and confirm_delete:
+                if db_manager.delete_room(room_to_delete):
+                    st.success(f"Room {room_to_delete} deleted successfully!")
+                    # Refresh rooms list
+                    st.session_state.rooms = db_manager.get_user_rooms(st.session_state.user_data['username'])
+                else:
+                    st.error(f"Failed to delete room {room_to_delete}.")
+    
+    with db_tab:
+        st.subheader("Database Management")
+        
+        st.info("Automatic message cleanup runs daily to remove messages older than 3 days.")
+        
+        if st.button("Run Manual Cleanup Now"):
+            deleted_count = db_manager.cleanup_old_messages()
+            st.success(f"Manual cleanup completed. {deleted_count} old messages deleted.")
 
 def main():
     """Main application function."""
